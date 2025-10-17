@@ -146,20 +146,151 @@ void mfrc522_antenna_on(void)
     mfrc522_write(TxControlReg, v | 0x03); // Set bits 0 and 1 to turn on antenna
 }
 
-//Main function
+// Send bytes in 'tx' and receive into 'rx'.
+// bitFraming: lower 3 bits = number of valid bits in last transmit byte (0..7).
+static uint8_t mfrc522_transceive(const uint8_t *tx, uint8_t txLen,
+                                  uint8_t *rx, uint8_t *rxLen,
+                                  uint8_t bitFraming)
+{
+    mfrc522_write(CommandReg, PCD_Idle);
+    mfrc522_write(CommIrqReg, 0x7F);         // clear all IRQs
+    mfrc522_write(FIFOLevelReg, 0x80);       // flush FIFO
+
+    for (uint8_t i=0;i<txLen;i++) mfrc522_write(FIFODataReg, tx[i]);
+    mfrc522_write(BitFramingReg, bitFraming & 0x07); // set Tx last bits (0..7)
+
+    mfrc522_write(CommandReg, PCD_Transceive);
+    // StartSend=1
+    uint8_t v = mfrc522_read(BitFramingReg);
+    mfrc522_write(BitFramingReg, v | 0x80);
+
+    // wait for RxIRq(0x20) or IdleIrq(0x10)
+    uint16_t to = 3000;
+    while (to--) {
+        uint8_t irq = mfrc522_read(CommIrqReg);
+        if (irq & 0x30) break;
+    }
+
+    // Stop sending
+    v = mfrc522_read(BitFramingReg);
+    mfrc522_write(BitFramingReg, v & ~0x80);
+
+    if (!to) return 1;                    // timeout
+    if (mfrc522_read(ErrorReg) & 0x13)    // BufferOvfl | ParityErr | ProtocolErr
+        return 2;
+
+    uint8_t n = mfrc522_read(FIFOLevelReg);
+    if (n > *rxLen) n = *rxLen;
+    for (uint8_t i=0;i<n;i++) rx[i] = mfrc522_read(FIFODataReg);
+    *rxLen = n;
+    return 0;
+}
+
+static uint8_t picc_request_a(uint8_t atqa[2])
+{
+    uint8_t cmd = PICC_REQA;
+    uint8_t rxLen = 2;
+
+    uint8_t st = mfrc522_transceive(&cmd, 1, atqa, &rxLen, 7);  // 7-bit frame
+    if (st)                return st;          // timeout / proto error
+    if (rxLen != 2)        return 3;           // not enough data
+    if (atqa[0]==0 && atqa[1]==0) return 4;    // bogus/no card
+
+    return 0;                                   // valid ATQA
+}
+
+
+
+void mfrc522_init_14443a(void)
+{
+    // ~1000us timeout, auto timer
+    mfrc522_write(TModeReg,      0x80);   // TAuto=1
+    mfrc522_write(TPrescalerReg, 0xA9);   // ~40 kHz
+    mfrc522_write(TReloadRegH,   0x03);   // 0x03E8 = 1000
+    mfrc522_write(TReloadRegL,   0xE8);
+
+    // 100% ASK
+    mfrc522_write(TxASKReg,      0x40);
+
+    // Receiver gain high (better range)
+    mfrc522_write(RFCfgReg,      0x70);
+
+    // CRC preset / TxWaitRF default
+    mfrc522_write(ModeReg,       0x3D);
+
+    // No partial-bit framing
+    mfrc522_write(BitFramingReg, 0x00);
+
+    // RF on
+    mfrc522_antenna_on();
+}
+
+
+
+
+static void spi_set_mode(uint8_t mode) {
+    uint32_t cr1 = (1U<<2) | (7U<<3) | (1U<<9) | (1U<<8); // MSTR,/256,SSM,SSI
+    if (mode & 0x02) cr1 |= (1U<<1); // CPOL
+    if (mode & 0x01) cr1 |= (1U<<0); // CPHA
+    SPI1->CR1 = 0;
+    SPI1->CR1 = cr1;
+    SPI1->CR2 = (7U<<8) | (1U<<12);
+    SPI1->CR1 |= (1U<<6);
+}
+
+// Main function
 int main(void)
 {
-    enable_gpio_spi1_clocks();
-    config_spi1_pins();
-    spi1_init_mode0();
+    // enable_gpio_spi1_clocks();
+    // config_spi1_pins();
+    // spi1_init_mode0();
 
+    // mfrc522_hw_reset();
+    // mfrc522_soft_reset();
+
+    
+    // mfrc522_init_14443a();
+    // //volatile uint8_t ver = mfrc522_read(VersionReg);
+    enable_gpio_spi1_clocks();
+    config_spi1_pins();              // CS pin becomes output here
+
+    /* --- CS sanity check: add these lines --- */
+    volatile uint32_t cs_idle_idr, cs_low_idr, cs_high_idr;
+    volatile uint32_t cs_idle_odr, cs_low_odr, cs_high_odr;
+
+    cs_high();  // idle high
+   cs_idle_idr = (CS_PORT->IDR >> CS_PIN) & 1U;   // expect 1
+    cs_idle_odr = (CS_PORT->ODR >> CS_PIN) & 1U;   // expect 1
+
+    cs_low();   // assert low
+    cs_low_idr  = (CS_PORT->IDR >> CS_PIN) & 1U;   // expect 0
+    cs_low_odr  = (CS_PORT->ODR >> CS_PIN) & 1U;   // expect 0
+
+    cs_high();  // back high
+    cs_high_idr = (CS_PORT->IDR >> CS_PIN) & 1U;   // expect 1
+    cs_high_odr = (CS_PORT->ODR >> CS_PIN) & 1U;   // expect 1
+    /* --- end CS sanity check --- */
+
+    spi1_init_mode0();
     mfrc522_hw_reset();
     mfrc522_soft_reset();
-//    mfrc522_antenna_on();
-    volatile uint8_t g_ver = 0;
-for (;;) {
-    g_ver = mfrc522_read(VersionReg); // continuously read version register
-    delay_ms(50);                     // short delay
-}
+    mfrc522_init_14443a();
+
+   
+    volatile uint8_t txc = mfrc522_read(TxControlReg);   // expect (txc & 0x03) == 0x03
+
+    // Should read 0x91 or 0x92
+    volatile uint8_t g_ver = mfrc522_read(VersionReg);
+
+    // Watch these in the debugger
+    volatile uint8_t st = 0;
+    volatile uint8_t card_present = 0;
+    volatile uint8_t atqa[2] = {0,0};
+
+    for (;;) {
+        st = picc_request_a((uint8_t*)atqa);
+        card_present = (st == 0);    
+        delay_ms(100);
+    }
 }
 
