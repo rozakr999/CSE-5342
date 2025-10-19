@@ -62,6 +62,27 @@ static inline void rst_high(void){ GPIO_SET(RST_PORT, RST_PIN); }
 /* -------- Other constants -------- */
 #define SoftResetCmd     0x0F
 
+
+//GPIO
+#define LED_GREEN_PORT GPIOB
+#define LED_GREEN_PIN  0
+
+#define LED_RED_PORT   GPIOC
+#define LED_RED_PIN    0
+
+#define LED_YELLOW_PORT GPIOA
+#define LED_YELLOW_PIN  10
+
+#define LED_BLUE_PORT GPIOA
+#define LED_BLUE_PIN  8   // D7 = PA8  (NOT PA7)
+
+
+
+//LED control macros
+#define LED_ON(port,pin)    ((port)->BSRR = (1U << (pin)))
+#define LED_OFF(port,pin)   ((port)->BSRR = (1U << ((pin) + 16)))
+
+
 /* -------- Prototypes -------- */
 void     delay_ms(volatile uint32_t ms);
 
@@ -76,7 +97,8 @@ uint8_t  mfrc522_read(uint8_t reg);
 void     mfrc522_write(uint8_t reg, uint8_t val);
 void     mfrc522_antenna_on(void);
 
-/* RF/ISO14443A init you call in main() */
-void     mfrc522_init_14443a(void);
+
+//led control
+void leds_init(void);
 
 #endif /* RFID_MFRC522_H */

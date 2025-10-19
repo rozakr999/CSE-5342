@@ -9,12 +9,15 @@ void delay_ms(volatile uint32_t ms)
     }
 }
 
-// Enable clocks for GPIOA, GPIOB, and SPI1
+/////////////////////////////////////ADDING GPIOS/////////////////////////////////////
 void enable_gpio_spi1_clocks(void)
 {
-    RCC->AHB1ENR |= (1U << 0) | (1U << 1);// GPIOA and GPIOB
+    // GPIOA (bit 0), GPIOB (bit 1), GPIOC (bit 2)
+    RCC->AHB1ENR |= (1U << 0) | (1U << 1) | (1U << 2);
     RCC->APB2ENR |= (1U << 12); // SPI1
 }
+
+
 
 //pin configuration for SPI1 
 static void gpio_mode(GPIO_TypeDef *port, uint8_t pin, uint32_t mode01)
@@ -189,14 +192,16 @@ static uint8_t mfrc522_transceive(const uint8_t *tx, uint8_t txLen,
 static uint8_t picc_request_a(uint8_t atqa[2])
 {
     uint8_t cmd = PICC_REQA;
-    uint8_t rxLen = 2;
+    uint8_t rx[4] = {0};
+    uint8_t rxLen = sizeof(rx);
 
-    uint8_t st = mfrc522_transceive(&cmd, 1, atqa, &rxLen, 7);  // 7-bit frame
-    if (st)                return st;          // timeout / proto error
-    if (rxLen != 2)        return 3;           // not enough data
-    if (atqa[0]==0 && atqa[1]==0) return 4;    // bogus/no card
+    uint8_t st = mfrc522_transceive(&cmd, 1, rx, &rxLen, 7);  // 7-bit frame
+    if (st)        return st;
+    if (rxLen < 2) return 3;
 
-    return 0;                                   // valid ATQA
+    atqa[0] = rx[0];
+    atqa[1] = rx[1];
+    return 0;
 }
 
 
@@ -228,7 +233,8 @@ void mfrc522_init_14443a(void)
 
 
 
-static void spi_set_mode(uint8_t mode) {
+static void spi_set_mode(uint8_t mode)
+{
     uint32_t cr1 = (1U<<2) | (7U<<3) | (1U<<9) | (1U<<8); // MSTR,/256,SSM,SSI
     if (mode & 0x02) cr1 |= (1U<<1); // CPOL
     if (mode & 0x01) cr1 |= (1U<<0); // CPHA
@@ -238,59 +244,215 @@ static void spi_set_mode(uint8_t mode) {
     SPI1->CR1 |= (1U<<6);
 }
 
-// Main function
-int main(void)
+
+static void mfrc522_crc(const uint8_t *data, uint8_t len, uint8_t out[2])
 {
-    // enable_gpio_spi1_clocks();
-    // config_spi1_pins();
-    // spi1_init_mode0();
+    mfrc522_write(CommandReg, PCD_Idle);
+    mfrc522_write(DivIrqReg, 0x04);      // clear CRCIRq
+    mfrc522_write(FIFOLevelReg, 0x80);   // flush FIFO
+    for (uint8_t i=0; i<len; i++) mfrc522_write(FIFODataReg, data[i]);
+    mfrc522_write(CommandReg, PCD_CalcCRC);
 
-    // mfrc522_hw_reset();
-    // mfrc522_soft_reset();
+    // wait CRCIRq
+    for (uint16_t t=0; t<5000; t++) {
+        if (mfrc522_read(DivIrqReg) & 0x04) break;
+    }
+    out[0] = mfrc522_read(CRCResultRegL);
+    out[1] = mfrc522_read(CRCResultRegH);
+}
 
-    
-    // mfrc522_init_14443a();
-    // //volatile uint8_t ver = mfrc522_read(VersionReg);
-    enable_gpio_spi1_clocks();
-    config_spi1_pins();              // CS pin becomes output here
 
-    /* --- CS sanity check: add these lines --- */
-    volatile uint32_t cs_idle_idr, cs_low_idr, cs_high_idr;
-    volatile uint32_t cs_idle_odr, cs_low_odr, cs_high_odr;
-
-    cs_high();  // idle high
-   cs_idle_idr = (CS_PORT->IDR >> CS_PIN) & 1U;   // expect 1
-    cs_idle_odr = (CS_PORT->ODR >> CS_PIN) & 1U;   // expect 1
-
-    cs_low();   // assert low
-    cs_low_idr  = (CS_PORT->IDR >> CS_PIN) & 1U;   // expect 0
-    cs_low_odr  = (CS_PORT->ODR >> CS_PIN) & 1U;   // expect 0
-
-    cs_high();  // back high
-    cs_high_idr = (CS_PORT->IDR >> CS_PIN) & 1U;   // expect 1
-    cs_high_odr = (CS_PORT->ODR >> CS_PIN) & 1U;   // expect 1
-    /* --- end CS sanity check --- */
-
-    spi1_init_mode0();
-    mfrc522_hw_reset();
-    mfrc522_soft_reset();
-    mfrc522_init_14443a();
-
-   
-    volatile uint8_t txc = mfrc522_read(TxControlReg);   // expect (txc & 0x03) == 0x03
-
-    // Should read 0x91 or 0x92
-    volatile uint8_t g_ver = mfrc522_read(VersionReg);
-
-    // Watch these in the debugger
-    volatile uint8_t st = 0;
-    volatile uint8_t card_present = 0;
-    volatile uint8_t atqa[2] = {0,0};
-
-    for (;;) {
-        st = picc_request_a((uint8_t*)atqa);
-        card_present = (st == 0);    
-        delay_ms(100);
+/* format 4-byte UID to human-readable hex string (watch uid_str in debugger) */
+static void uid_to_hex(const uint8_t uid[4], char out[3*4])
+{
+    const char* h = "0123456789ABCDEF";
+    for (int i = 0; i < 4; ++i)
+     {
+        out[i*3 + 0] = h[(uid[i] >> 4) & 0xF];
+        out[i*3 + 1] = h[uid[i] & 0xF];
+        out[i*3 + 2] = (i == 3) ? '\0' : ' ';
     }
 }
 
+
+
+/* Anticollision (cascade level 1) → returns 4-byte UID */
+static uint8_t picc_anticoll_cl1(uint8_t uid[4])
+{
+    uint8_t cmd[2] = { PICC_SEL_CL1, 0x20 };  // NVB=0x20
+    uint8_t rx[10] = {0};
+    uint8_t rxLen  = sizeof(rx);
+
+    uint8_t st = mfrc522_transceive(cmd, 2, rx, &rxLen, 0);
+    if (st)        return st;
+    if (rxLen < 5) return 3;                  // expect UID[4] + BCC
+
+    uid[0]=rx[0]; uid[1]=rx[1]; uid[2]=rx[2]; uid[3]=rx[3];
+    uint8_t bcc = rx[4];
+    if ( (uid[0]^uid[1]^uid[2]^uid[3]^bcc) != 0 ) return 5; // BCC fail
+    return 0;
+}
+
+
+static uint8_t picc_select_cl1(const uint8_t uid[4], uint8_t *sak_out)
+{
+    uint8_t buf[9];   // SEL(1) + NVB(1) + UID(4) + BCC(1) + CRC(2)
+    uint8_t crc[2];
+    uint8_t rx[10];
+    uint8_t rxLen = sizeof(rx);
+
+    // SEL CL1 + NVB=0x70
+    buf[0] = PICC_SEL_CL1; // 0x93
+    buf[1] = 0x70;
+    // copy UID[0..3]
+    for (int i = 0; i < 4; ++i) buf[2 + i] = uid[i];
+    // BCC = XOR of UID bytes
+    buf[6] = uid[0] ^ uid[1] ^ uid[2] ^ uid[3];
+
+    // compute CRC over first 7 bytes (SEL,NVB,UID0..3,BCC)
+    mfrc522_crc(buf, 7, crc);
+    buf[7] = crc[0];
+    buf[8] = crc[1];
+
+    // send frame and expect 1 byte SAK
+    uint8_t st = mfrc522_transceive(buf, 9, rx, &rxLen, 0);
+    if (st) return st;
+    if (rxLen < 1) return 2;
+
+    *sak_out = rx[0];
+    return 0;
+}
+
+/* ---- Authorized tag (your UID) ---- */
+static const uint8_t AUTH_UID[4] = {0x4B, 0xA8, 0xB1, 0x01};
+
+/* tiny helper */
+static int uid_equal(const uint8_t a[4], const uint8_t b[4])
+{
+    return (a[0]==b[0]) && (a[1]==b[1]) && (a[2]==b[2]) && (a[3]==b[3]);
+}
+
+void leds_init(void)
+{
+    // ensure clocks are on for A, B, C (needed for PB0, PC0, PA10)
+    RCC->AHB1ENR |= (1U<<0) | (1U<<1) | (1U<<2);
+
+    // PB0 (green)
+    LED_GREEN_PORT->MODER &= ~(3U<<(LED_GREEN_PIN*2));
+    LED_GREEN_PORT->MODER |=  (1U<<(LED_GREEN_PIN*2));
+
+    // PC0 (red)
+    LED_RED_PORT->MODER &= ~(3U<<(LED_RED_PIN*2));
+    LED_RED_PORT->MODER |=  (1U<<(LED_RED_PIN*2));
+
+    // PA10 (yellow)
+    LED_YELLOW_PORT->MODER &= ~(3U<<(LED_YELLOW_PIN*2));
+    LED_YELLOW_PORT->MODER |=  (1U<<(LED_YELLOW_PIN*2));
+
+    // push-pull, no pulls
+    LED_GREEN_PORT->OTYPER  &= ~PIN_MASK(LED_GREEN_PIN);
+    LED_RED_PORT->OTYPER    &= ~PIN_MASK(LED_RED_PIN);
+    LED_YELLOW_PORT->OTYPER &= ~PIN_MASK(LED_YELLOW_PIN);
+
+    LED_GREEN_PORT->PUPDR  &= ~(3U<<(LED_GREEN_PIN*2));
+    LED_RED_PORT->PUPDR    &= ~(3U<<(LED_RED_PIN*2));
+    LED_YELLOW_PORT->PUPDR &= ~(3U<<(LED_YELLOW_PIN*2));
+
+        // PA8 (blue)  <-- D7
+    LED_BLUE_PORT->MODER &= ~(3U << (LED_BLUE_PIN * 2));
+    LED_BLUE_PORT->MODER |=  (1U << (LED_BLUE_PIN * 2));   // output
+    LED_BLUE_PORT->OTYPER  &= ~PIN_MASK(LED_BLUE_PIN);     // push-pull
+    LED_BLUE_PORT->PUPDR   &= ~(3U << (LED_BLUE_PIN * 2)); // no pulls
+    LED_OFF(LED_BLUE_PORT, LED_BLUE_PIN);
+
+
+
+    // all OFF initially
+    LED_OFF(LED_GREEN_PORT,  LED_GREEN_PIN);
+    LED_OFF(LED_RED_PORT,    LED_RED_PIN);
+    LED_OFF(LED_YELLOW_PORT, LED_YELLOW_PIN);
+}
+
+
+int main(void)
+{
+    // --- Initialization ---
+    enable_gpio_spi1_clocks();
+    config_spi1_pins();
+    spi1_init_mode0();
+
+    mfrc522_hw_reset();
+    mfrc522_soft_reset();
+    mfrc522_init_14443a();       // set up ISO14443A timing + RF field ON
+    leds_init();
+
+
+    // --- Verify communication ---
+    volatile uint8_t g_ver = mfrc522_read(VersionReg);   // expect 0x91 or 0x92
+    volatile uint8_t txc   = mfrc522_read(TxControlReg); // bits 1:0 should be 0x03 if antenna ON
+
+    volatile uint8_t authorized = 0;   // 1 = tag matches AUTH_UID
+
+      
+
+    // Suppress unused variable warnings
+    (void)g_ver;
+    (void)txc;
+
+    // --- Variables to watch in debugger ---
+     uint8_t card_present = 0;
+     uint8_t atqa[2] = {0, 0};
+     uint8_t st = 0;
+     uint8_t uid[4] = {0};
+     uint8_t last_present = 0;
+
+    //////////////////////////////////////////////////
+    static char uid_str[3*4] = {0};  // UID as hex string
+    uint8_t sak = 0;         // SAK returned by SELECT
+
+    // --- Main polling loop ---
+    for (;;) {
+    uint8_t st_req = picc_request_a(atqa);
+    card_present = (st_req == 0) && (atqa[0] | atqa[1]);
+
+    if (card_present && !last_present)
+{
+    LED_ON(LED_YELLOW_PORT, LED_YELLOW_PIN);      // flash yellow while reading
+
+    st = picc_anticoll_cl1(uid);                  // get UID
+    uid_to_hex(uid, uid_str);
+    uint8_t st_sel = picc_select_cl1(uid, &sak);
+    (void)st; (void)st_sel;
+
+    authorized = uid_equal(uid, AUTH_UID) ? 1 : 0;
+
+    LED_OFF(LED_YELLOW_PORT, LED_YELLOW_PIN);     // done “processing”
+}
+
+   /////led logic/////
+if (!card_present) {
+    // No card → Blue ON, all others OFF
+    LED_ON(LED_BLUE_PORT, LED_BLUE_PIN);
+    LED_OFF(LED_GREEN_PORT,  LED_GREEN_PIN);
+    LED_OFF(LED_RED_PORT,    LED_RED_PIN);
+    LED_OFF(LED_YELLOW_PORT, LED_YELLOW_PIN);
+    authorized = 0;
+} else {
+    // Card present , Yellow ON, Blue OFF
+    LED_OFF(LED_BLUE_PORT, LED_BLUE_PIN);
+    LED_ON(LED_YELLOW_PORT, LED_YELLOW_PIN);
+
+    if (authorized) {
+        LED_ON(LED_GREEN_PORT,  LED_GREEN_PIN);
+        LED_OFF(LED_RED_PORT,   LED_RED_PIN);
+    } else {
+        LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
+        LED_ON(LED_RED_PORT,    LED_RED_PIN);
+    }
+}
+
+
+    last_present = card_present;
+    delay_ms(100);
+}
+}

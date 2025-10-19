@@ -158,52 +158,62 @@
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>card_present</ItemText>
+          <ItemText>txc</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>atqa[0]</ItemText>
+          <ItemText>card_present</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>atqa[1]</ItemText>
+          <ItemText>atqa[0]</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>st</ItemText>
+          <ItemText>atqa[1]</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
           <WinNumber>1</WinNumber>
-          <ItemText>cs_idle_idr</ItemText>
+          <ItemText>uid[0]</ItemText>
         </Ww>
         <Ww>
           <count>6</count>
           <WinNumber>1</WinNumber>
-          <ItemText>cs_low_idr</ItemText>
+          <ItemText>uid[1]</ItemText>
         </Ww>
         <Ww>
           <count>7</count>
           <WinNumber>1</WinNumber>
-          <ItemText>cs_high_idr</ItemText>
+          <ItemText>uid[2]</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>cs_idle_odr</ItemText>
+          <ItemText>uid[3]</ItemText>
         </Ww>
         <Ww>
           <count>9</count>
           <WinNumber>1</WinNumber>
-          <ItemText>cs_low_odr</ItemText>
+          <ItemText>uid_str</ItemText>
         </Ww>
         <Ww>
           <count>10</count>
           <WinNumber>1</WinNumber>
-          <ItemText>cs_high_odr</ItemText>
+          <ItemText>sak</ItemText>
+        </Ww>
+        <Ww>
+          <count>11</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>authorized</ItemText>
+        </Ww>
+        <Ww>
+          <count>12</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>uid[0]</ItemText>
         </Ww>
       </WatchWindow1>
       <Tracepoint>

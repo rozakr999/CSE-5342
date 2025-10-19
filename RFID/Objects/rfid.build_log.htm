@@ -27,7 +27,14 @@ Project File Date:  10/16/2025
 <h2>Output:</h2>
 *** Using Compiler 'V6.24', folder: 'C:\Users\rozak\AppData\Local\Keil_v5\ARM\ARMCLANG\Bin'
 Build target 'Target_1'
-".\Objects\rfid.axf" - 0 Error(s), 0 Warning(s).
+main.c(236): warning: unused function 'spi_set_mode' [-Wunused-function]
+  236 | static void spi_set_mode(uint8_t mode) {
+      |             ^~~~~~~~~~~~
+1 warning generated.
+compiling main.c...
+linking...
+Program Size: Code=3254 RO-data=490 RW-data=0 ZI-data=1648  
+".\Objects\rfid.axf" - 0 Error(s), 1 Warning(s).
 
 <h2>Software Packages used:</h2>
 
