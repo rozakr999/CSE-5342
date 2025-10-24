@@ -1,4 +1,6 @@
 #include "rfid_mfrc522.h"
+#include "keypad.h"
+
 #define SPI_MODE 0
 
 // Simple blocking delay 
@@ -233,8 +235,7 @@ void mfrc522_init_14443a(void)
 
 
 
-static void spi_set_mode(uint8_t mode)
-{
+static void spi_set_mode(uint8_t mode) {
     uint32_t cr1 = (1U<<2) | (7U<<3) | (1U<<9) | (1U<<8); // MSTR,/256,SSM,SSI
     if (mode & 0x02) cr1 |= (1U<<1); // CPOL
     if (mode & 0x01) cr1 |= (1U<<0); // CPHA
@@ -373,6 +374,21 @@ void leds_init(void)
     LED_OFF(LED_YELLOW_PORT, LED_YELLOW_PIN);
 }
 
+// 4-digit PIN required after a valid RFID tag
+static const char EXPECTED_PIN[4] = { '2','5','8','0' };  // <— change to what you want
+
+static uint8_t check_pin_blocking(uint32_t timeout_ms)
+{
+    char entered[4] = {0,0,0,0};
+    uint8_t n = keypad_read_code(entered, 4, timeout_ms);  // waits up to timeout_ms
+    if (n != 4) return 0;  // timed out or incomplete
+    return (entered[0]==EXPECTED_PIN[0] &&
+            entered[1]==EXPECTED_PIN[1] &&
+            entered[2]==EXPECTED_PIN[2] &&
+            entered[3]==EXPECTED_PIN[3]);
+}
+
+
 
 int main(void)
 {
@@ -383,76 +399,101 @@ int main(void)
 
     mfrc522_hw_reset();
     mfrc522_soft_reset();
-    mfrc522_init_14443a();       // set up ISO14443A timing + RF field ON
+    mfrc522_init_14443a();   // ISO14443A setup + RF ON
     leds_init();
-
+    keypad_init();
 
     // --- Verify communication ---
-    volatile uint8_t g_ver = mfrc522_read(VersionReg);   // expect 0x91 or 0x92
-    volatile uint8_t txc   = mfrc522_read(TxControlReg); // bits 1:0 should be 0x03 if antenna ON
+    volatile uint8_t g_ver = mfrc522_read(VersionReg);
+    volatile uint8_t txc   = mfrc522_read(TxControlReg);
+    (void)g_ver; (void)txc;
 
-    volatile uint8_t authorized = 0;   // 1 = tag matches AUTH_UID
+    // --- Variables ---
+    uint8_t atqa[2] = {0,0};
+    uint8_t uid[4]  = {0};
+    uint8_t sak     = 0;
+    uint8_t card_present = 0, last_present = 0;
+    uint8_t uid_ok = 0, pin_checked = 0, pin_ok = 0;
+    static char uid_str[3*4] = {0};
 
-      
-
-    // Suppress unused variable warnings
-    (void)g_ver;
-    (void)txc;
-
-    // --- Variables to watch in debugger ---
-     uint8_t card_present = 0;
-     uint8_t atqa[2] = {0, 0};
-     uint8_t st = 0;
-     uint8_t uid[4] = {0};
-     uint8_t last_present = 0;
-
-    //////////////////////////////////////////////////
-    static char uid_str[3*4] = {0};  // UID as hex string
-    uint8_t sak = 0;         // SAK returned by SELECT
-
-    // --- Main polling loop ---
-    for (;;) {
-    uint8_t st_req = picc_request_a(atqa);
-    card_present = (st_req == 0) && (atqa[0] | atqa[1]);
-
-    if (card_present && !last_present)
-{
-    LED_ON(LED_YELLOW_PORT, LED_YELLOW_PIN);      // flash yellow while reading
-
-    st = picc_anticoll_cl1(uid);                  // get UID
-    uid_to_hex(uid, uid_str);
-    uint8_t st_sel = picc_select_cl1(uid, &sak);
-    (void)st; (void)st_sel;
-
-    authorized = uid_equal(uid, AUTH_UID) ? 1 : 0;
-
-    LED_OFF(LED_YELLOW_PORT, LED_YELLOW_PIN);     // done “processing”
-}
-
-   /////led logic/////
-if (!card_present) {
-    // No card → Blue ON, all others OFF
+    // Idle LEDs
     LED_ON(LED_BLUE_PORT, LED_BLUE_PIN);
-    LED_OFF(LED_GREEN_PORT,  LED_GREEN_PIN);
-    LED_OFF(LED_RED_PORT,    LED_RED_PIN);
     LED_OFF(LED_YELLOW_PORT, LED_YELLOW_PIN);
-    authorized = 0;
-} else {
-    // Card present , Yellow ON, Blue OFF
-    LED_OFF(LED_BLUE_PORT, LED_BLUE_PIN);
-    LED_ON(LED_YELLOW_PORT, LED_YELLOW_PIN);
+    LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
+    LED_OFF(LED_RED_PORT, LED_RED_PIN);
 
-    if (authorized) {
-        LED_ON(LED_GREEN_PORT,  LED_GREEN_PIN);
-        LED_OFF(LED_RED_PORT,   LED_RED_PIN);
-    } else {
-        LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
-        LED_ON(LED_RED_PORT,    LED_RED_PIN);
+    // --- Main loop ---
+    for (;;)
+    {
+        uint8_t st_req = picc_request_a(atqa);
+        card_present = (st_req == 0) && (atqa[0] | atqa[1]);
+
+        if (card_present && !last_present)
+        {
+            // Card just arrived
+            LED_OFF(LED_BLUE_PORT, LED_BLUE_PIN);
+            LED_ON(LED_YELLOW_PORT, LED_YELLOW_PIN); // Yellow ON for any card
+
+            // Read UID
+            uint8_t st = picc_anticoll_cl1(uid);
+            uid_to_hex(uid, uid_str);
+            (void)picc_select_cl1(uid, &sak);
+            (void)st;
+
+            // Check UID match
+            uid_ok = uid_equal(uid, AUTH_UID) ? 1 : 0;
+            pin_checked = 0;
+            pin_ok = 0;
+
+            if (!uid_ok)
+            {
+                // Wrong card: Red ON, Yellow stays ON
+                LED_ON(LED_RED_PORT,    LED_RED_PIN);
+                LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
+            }
+            else
+            {
+                // Correct UID: Stay Yellow (no green yet)
+                LED_OFF(LED_RED_PORT,   LED_RED_PIN);
+                LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
+            }
+        }
+
+        // Ask for PIN if correct UID and not checked yet
+        if (card_present && uid_ok && !pin_checked)
+        {
+            // Yellow stays ON
+            pin_ok = check_pin_blocking(10000); // wait up to 10s for PIN
+            pin_checked = 1;
+
+            if (pin_ok)
+            {
+                // PIN correct → Door open → Green ON (keep Yellow ON)
+                LED_ON(LED_GREEN_PORT,  LED_GREEN_PIN);
+                LED_OFF(LED_RED_PORT,   LED_RED_PIN);
+            }
+            else
+            {
+                // Wrong PIN → Red ON (keep Yellow ON)
+                LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
+                LED_ON(LED_RED_PORT,    LED_RED_PIN);
+            }
+        }
+
+        // No card present → reset
+        if (!card_present)
+        {
+            uid_ok = 0;
+            pin_checked = 0;
+            pin_ok = 0;
+
+            LED_ON(LED_BLUE_PORT,   LED_BLUE_PIN);   // idle
+            LED_OFF(LED_YELLOW_PORT,LED_YELLOW_PIN);
+            LED_OFF(LED_RED_PORT,   LED_RED_PIN);
+            LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
+        }
+
+        last_present = card_present;
+        delay_ms(250);
     }
-}
-
-
-    last_present = card_present;
-    delay_ms(100);
-}
 }
