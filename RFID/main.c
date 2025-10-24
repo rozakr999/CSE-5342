@@ -263,7 +263,7 @@ static void mfrc522_crc(const uint8_t *data, uint8_t len, uint8_t out[2])
 }
 
 
-/* format 4-byte UID to human-readable hex string (watch uid_str in debugger) */
+// Convert 4-byte UID to hex string (e.g., "DE AD BE EF")
 static void uid_to_hex(const uint8_t uid[4], char out[3*4])
 {
     const char* h = "0123456789ABCDEF";
@@ -302,15 +302,15 @@ static uint8_t picc_select_cl1(const uint8_t uid[4], uint8_t *sak_out)
     uint8_t rx[10];
     uint8_t rxLen = sizeof(rx);
 
-    // SEL CL1 + NVB=0x70
+  
     buf[0] = PICC_SEL_CL1; // 0x93
     buf[1] = 0x70;
     // copy UID[0..3]
     for (int i = 0; i < 4; ++i) buf[2 + i] = uid[i];
-    // BCC = XOR of UID bytes
+    
     buf[6] = uid[0] ^ uid[1] ^ uid[2] ^ uid[3];
 
-    // compute CRC over first 7 bytes (SEL,NVB,UID0..3,BCC)
+
     mfrc522_crc(buf, 7, crc);
     buf[7] = crc[0];
     buf[8] = crc[1];
@@ -375,7 +375,7 @@ void leds_init(void)
 }
 
 // 4-digit PIN required after a valid RFID tag
-static const char EXPECTED_PIN[4] = { '2','5','8','0' };  // <— change to what you want
+static const char EXPECTED_PIN[4] = { '2','5','8','0' };  // 
 
 static uint8_t check_pin_blocking(uint32_t timeout_ms)
 {
