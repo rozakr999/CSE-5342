@@ -1,5 +1,6 @@
 #include "rfid_mfrc522.h"
 #include "keypad.h"
+#include "uart.h"
 
 #define SPI_MODE 0
 
@@ -398,6 +399,77 @@ static uint8_t check_pin_blocking(uint32_t timeout_ms)
             entered[3] == EXPECTED_PIN[3]);
 }
 
+void initRTC(void)
+{
+    // Enable power interface clock
+    RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+    PWR->CR |= PWR_CR_DBP;  // Allow access to backup domain
+    while (!(PWR->CR & PWR_CR_DBP));  // Wait for access to enable
+	
+	// Uncomment this only if changing RTC source or doing a clean reinit (for LSI, LSE, or HSE)
+	//RCC->BDCR |= RCC_BDCR_BDRST;
+    //RCC->BDCR &= ~RCC_BDCR_BDRST; 
+
+    // Enable LSE (32.768 kHz crystal)
+    RCC->BDCR |= RCC_BDCR_LSEON;
+    while (!(RCC->BDCR & RCC_BDCR_LSERDY)); // Wait until LSE is ready
+
+    // Select LSE as RTC clock and enable RTC
+    RCC->BDCR &= ~RCC_BDCR_RTCSEL;
+    RCC->BDCR |= RCC_BDCR_RTCSEL_0; // 01: LSE selected
+    RCC->BDCR |= RCC_BDCR_RTCEN;    // Enable RTC
+	
+	// Wait for RTC registers to synchronize
+    RTC->ISR &= ~RTC_ISR_RSF;            // Clear RSF
+    while (!(RTC->ISR & RTC_ISR_RSF));   // Wait for registers to sync
+	
+	// Enter RTC init mode to set prescalers
+	RTC->WPR = 0xCA;
+	RTC->WPR = 0x53;
+	RTC->ISR |= RTC_ISR_INIT;
+	while (!(RTC->ISR & RTC_ISR_INITF));
+
+	// ck_spre = 32,768 / ((127+1)*(255+1)) = 1 Hz
+	RTC->PRER = (127 << 16) | 255;
+		
+	// Set 24-hour format
+    RTC->CR &= ~RTC_CR_FMT;
+
+	RTC->ISR &= ~RTC_ISR_INIT;
+	RTC->WPR = 0xFF;
+}
+
+uint8_t bcd2dec(uint8_t val) { return ((val >> 4)*10) + (val & 0x0F); }
+
+void getTime(char *buffer)
+{
+    uint32_t tr = RTC->TR;
+
+    uint8_t hours = bcd2dec((tr >> 16) & 0x3F);
+    uint8_t minutes = bcd2dec((tr >> 8) & 0x7F);
+    uint8_t seconds = bcd2dec(tr & 0x7F);
+
+    sprintf(buffer, "%02u:%02u:%02u\r\n", hours, minutes, seconds);
+}
+
+uint32_t dec2bcd(uint8_t val) {
+    return ((val / 10) << 4) | (val % 10);
+}
+
+void setTime(uint8_t hours, uint8_t minutes, uint8_t seconds) {
+    RTC->WPR = 0xCA;
+    RTC->WPR = 0x53;
+    RTC->ISR |= RTC_ISR_INIT;
+    while (!(RTC->ISR & RTC_ISR_INITF));
+
+    RTC->TR = (dec2bcd(hours) << 16) |
+              (dec2bcd(minutes) << 8) |
+              (dec2bcd(seconds) << 0);
+
+    RTC->ISR &= ~RTC_ISR_INIT;
+    RTC->WPR = 0xFF;
+}
+
 int main(void)
 {
     // initialize SPI1 and MFRC522
@@ -410,6 +482,12 @@ int main(void)
     mfrc522_init_14443a(); 
     leds_init();
     keypad_init();
+    initUsart2();
+    initRTC();
+    // change time to match with world clock here <---
+    // military time (hours, minutes, seconds)
+	setTime(0, 20, 0);
+	putsUart("time is set\r\n");
 
     // test reads
     volatile uint8_t g_ver = mfrc522_read(VersionReg);
@@ -459,12 +537,22 @@ int main(void)
                 // Wrong card: Red ON, Yellow stays ON
                 LED_ON(LED_RED_PORT, LED_RED_PIN);
                 LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
+
+				putsUart("Wrong card attempted at: ");
+				char msg[32];
+				getTime(msg);
+				putsUart(msg);
             }
             else
             {
                 // Correct UID: Stay Yellow (no green yet)
                 LED_OFF(LED_RED_PORT, LED_RED_PIN);
                 LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
+                
+				putsUart("Right card attempted at: ");
+				char msg[32];
+				getTime(msg);
+				putsUart(msg);
             }
         }
 
@@ -480,12 +568,22 @@ int main(void)
                 // Yellow ON, Green ON
                 LED_ON(LED_GREEN_PORT, LED_GREEN_PIN);
                 LED_OFF(LED_RED_PORT, LED_RED_PIN);
+                
+				putsUart("PIN correctly entered at: ");
+				char msg[32];
+				getTime(msg);
+				putsUart(msg);
             }
             else
             {
                 // wrong pin, Red ON, yellow stays ON
                 LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
                 LED_ON(LED_RED_PORT, LED_RED_PIN);
+
+				putsUart("PIN failed at: ");
+				char msg[32];
+				getTime(msg);
+				putsUart(msg);
             }
         }
 
