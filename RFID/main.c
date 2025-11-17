@@ -1,6 +1,7 @@
 #include "rfid_mfrc522.h"
 #include "keypad.h"
 #include "uart.h"
+#include "lcd_i2c.h"
 
 #define SPI_MODE 0
 
@@ -470,6 +471,13 @@ void setTime(uint8_t hours, uint8_t minutes, uint8_t seconds) {
     RTC->WPR = 0xFF;
 }
 
+void resetData(USER_DATA* data)
+{
+		int i;
+		for (i = 0; i < MAX_CHARS; i++)
+				data->buffer[i] = '\0';
+}
+
 int main(void)
 {
     // initialize SPI1 and MFRC522
@@ -483,11 +491,29 @@ int main(void)
     leds_init();
     keypad_init();
     initUsart2();
+		I2C1_init();
+		lcd_init();
     initRTC();
-    // change time to match with world clock here <---
-    // military time (hours, minutes, seconds)
-	setTime(0, 20, 0);
-	putsUart("time is set\r\n");
+	
+    // Ask user for time at startup
+		int hh, mm, ss;
+		int exit = 0;
+		USER_DATA data;
+		while(!exit) {
+				putsUart("Enter time (HH:MM:SS): ");
+				resetData(&data);
+				getData(&data);
+				if (sscanf(data.buffer, "%d:%d:%d", &hh, &mm, &ss) == 3)
+				{
+						setTime(hh, mm, ss);
+						putsUart("Time set!\r\n");
+						exit = 1;
+				}
+				else
+				{
+					putsUart("Invalid format. Must have 6 numbers and 2 colons.\r\n");
+				}
+		}
 
     // test reads
     volatile uint8_t g_ver = mfrc522_read(VersionReg);
@@ -508,12 +534,19 @@ int main(void)
     LED_OFF(LED_YELLOW_PORT, LED_YELLOW_PIN);
     LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
     LED_OFF(LED_RED_PORT, LED_RED_PIN);
+		
+		int swipeCard = 0;
 
     // main loop
     for (;;)
     {
         uint8_t st_req = picc_request_a(atqa);
         card_present = (st_req == 0) && (atqa[0] | atqa[1]);
+				if (swipeCard == 0) {
+						lcd_clear();
+						lcd_print("Swipe card");
+						swipeCard = 1;
+				}
 
         if (card_present && !last_present)
         {
@@ -538,10 +571,14 @@ int main(void)
                 LED_ON(LED_RED_PORT, LED_RED_PIN);
                 LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
 
-				putsUart("Wrong card attempted at: ");
-				char msg[32];
-				getTime(msg);
-				putsUart(msg);
+								putsUart("Wrong card attempted at: ");
+								char msg[32];
+								getTime(msg);
+								putsUart(msg);
+							
+								lcd_clear();
+								lcd_print("Incorrect card");
+								swipeCard = 0;
             }
             else
             {
@@ -549,10 +586,14 @@ int main(void)
                 LED_OFF(LED_RED_PORT, LED_RED_PIN);
                 LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
                 
-				putsUart("Right card attempted at: ");
-				char msg[32];
-				getTime(msg);
-				putsUart(msg);
+								putsUart("Right card attempted at: ");
+								char msg[32];
+								getTime(msg);
+								putsUart(msg);
+							
+								lcd_clear();
+								lcd_print("Type passcode");
+								swipeCard = 0;
             }
         }
 
@@ -569,10 +610,13 @@ int main(void)
                 LED_ON(LED_GREEN_PORT, LED_GREEN_PIN);
                 LED_OFF(LED_RED_PORT, LED_RED_PIN);
                 
-				putsUart("PIN correctly entered at: ");
-				char msg[32];
-				getTime(msg);
-				putsUart(msg);
+								putsUart("PIN correctly entered at: ");
+								char msg[32];
+								getTime(msg);
+								putsUart(msg);
+							
+								lcd_clear();
+								lcd_print("Welcome!");
             }
             else
             {
@@ -580,10 +624,13 @@ int main(void)
                 LED_OFF(LED_GREEN_PORT, LED_GREEN_PIN);
                 LED_ON(LED_RED_PORT, LED_RED_PIN);
 
-				putsUart("PIN failed at: ");
-				char msg[32];
-				getTime(msg);
-				putsUart(msg);
+								putsUart("PIN failed at: ");
+								char msg[32];
+								getTime(msg);
+								putsUart(msg);
+							
+								lcd_clear();
+								lcd_print("Incorrect passcode");
             }
         }
 
