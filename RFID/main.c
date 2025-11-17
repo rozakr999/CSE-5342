@@ -2,6 +2,7 @@
 #include "keypad.h"
 #include "uart.h"
 #include "lcd_i2c.h"
+#include "servomotor.h"
 
 #define SPI_MODE 0
 
@@ -494,6 +495,7 @@ int main(void)
 		I2C1_init();
 		lcd_init();
     initRTC();
+		initPwm();
 	
     // Ask user for time at startup
 		int hh, mm, ss;
@@ -617,6 +619,7 @@ int main(void)
 							
 								lcd_clear();
 								lcd_print("Welcome!");
+								sweepServo();
             }
             else
             {
