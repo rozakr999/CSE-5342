@@ -1,35 +1,0 @@
-Dependencies for Project 'RFID', Target 'Target_1': (DO NOT MODIFY !)
-CompilerVersion: 6240000::V6.24::ARMCLANG
-F (.\keypad.c)(0x68FFB62F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__EVAL -gdwarf-4 -O0 -ffunction-sections -Wall -Wextra -Wno-packed -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier-I./RTE/_Target_1-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/ARM/CMSIS/6.2.0/CMSIS/Core/Include"-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/Keil/STM32F4xx_DFP/2.17.0/Drivers/CMSIS/Device/ST/STM32F4xx/Include"-D__UVISION_VERSION="543" -DSTM32F446xx -D_RTE_-o ./objects/keypad.o -MMD)
-I (keypad.h)(0x68FFB631)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f446xx.h)(0x68AF2D4D)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\core_cm4.h)(0x68AE6C70)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\system_stm32f4xx.h)(0x68AF2D4D)
-F (.\main.c)(0x691B8852)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__EVAL -gdwarf-4 -O0 -ffunction-sections -Wall -Wextra -Wno-packed -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier-I./RTE/_Target_1-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/ARM/CMSIS/6.2.0/CMSIS/Core/Include"-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/Keil/STM32F4xx_DFP/2.17.0/Drivers/CMSIS/Device/ST/STM32F4xx/Include"-D__UVISION_VERSION="543" -DSTM32F446xx -D_RTE_-o ./objects/main.o -MMD)
-I (rfid_mfrc522.h)(0x68FFB65A)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f446xx.h)(0x68AF2D4D)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\core_cm4.h)(0x68AE6C70)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\system_stm32f4xx.h)(0x68AF2D4D)
-I (keypad.h)(0x68FFB631)
-I (uart.h)(0x68FFB665)
-I (lcd_i2c.h)(0x691A9A2F)
-F (.\uart.c)(0x68FFB662)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__EVAL -gdwarf-4 -O0 -ffunction-sections -Wall -Wextra -Wno-packed -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier-I./RTE/_Target_1-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/ARM/CMSIS/6.2.0/CMSIS/Core/Include"-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/Keil/STM32F4xx_DFP/2.17.0/Drivers/CMSIS/Device/ST/STM32F4xx/Include"-D__UVISION_VERSION="543" -DSTM32F446xx -D_RTE_-o ./objects/uart.o -MMD)
-I (uart.h)(0x68FFB665)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f446xx.h)(0x68AF2D4D)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\core_cm4.h)(0x68AE6C70)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\system_stm32f4xx.h)(0x68AF2D4D)
-F (.\rfid_mfrc522.h)(0x68FFB65A)()
-F (.\uart.h)(0x68FFB665)()
-F (.\lcd_i2c.c)(0x691B7CF1)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__EVAL -gdwarf-4 -O0 -ffunction-sections -Wall -Wextra -Wno-packed -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier-I./RTE/_Target_1-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/ARM/CMSIS/6.2.0/CMSIS/Core/Include"-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/Keil/STM32F4xx_DFP/2.17.0/Drivers/CMSIS/Device/ST/STM32F4xx/Include"-D__UVISION_VERSION="543" -DSTM32F446xx -D_RTE_-o ./objects/lcd_i2c.o -MMD)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f4xx.h)(0x68AF2D4D)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f446xx.h)(0x68AF2D4D)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\core_cm4.h)(0x68AE6C70)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\system_stm32f4xx.h)(0x68AF2D4D)
-I (lcd_i2c.h)(0x691A9A2F)
-F (.\lcd_i2c.h)(0x691A9A2F)()
-F (RTE/Device/STM32F446RETx/startup_stm32f446xx.s)(0x68AF2D4D)(--target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -masm=auto  -Wa,armasm,--diag_suppress=A1950W -c-gdwarf-4 -Wa,armasm,--pd,"__EVAL SETA 1"-I./RTE/_Target_1-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/ARM/CMSIS/6.2.0/CMSIS/Core/Include"-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/Keil/STM32F4xx_DFP/2.17.0/Drivers/CMSIS/Device/ST/STM32F4xx/Include"-Wa,armasm,--pd,"__UVISION_VERSION SETA 543" -Wa,armasm,--pd,"STM32F446xx SETA 1" -Wa,armasm,--pd,"_RTE_ SETA 1"-o ./objects/startup_stm32f446xx.o)
-F (RTE/Device/STM32F446RETx/system_stm32f4xx.c)(0x68AF2D4E)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__EVAL -gdwarf-4 -O0 -ffunction-sections -Wall -Wextra -Wno-packed -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier-I./RTE/_Target_1-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/ARM/CMSIS/6.2.0/CMSIS/Core/Include"-I"C:/Users/Andrew Weiler/AppData/Local/Arm/Packs/Keil/STM32F4xx_DFP/2.17.0/Drivers/CMSIS/Device/ST/STM32F4xx/Include"-D__UVISION_VERSION="543" -DSTM32F446xx -D_RTE_-o ./objects/system_stm32f4xx.o -MMD)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f4xx.h)(0x68AF2D4D)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f446xx.h)(0x68AF2D4D)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\core_cm4.h)(0x68AE6C70)
-I (C:\Users\Andrew Weiler\AppData\Local\Arm\Packs\Keil\STM32F4xx_DFP\2.17.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include\system_stm32f4xx.h)(0x68AF2D4D)
