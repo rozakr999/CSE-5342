@@ -3,6 +3,7 @@
 #include "uart.h"
 #include "lcd_i2c.h"
 #include "servomotor.h"
+#include "buzzer.h"
 
 #define SPI_MODE 0
 
@@ -496,6 +497,8 @@ int main(void)
 		lcd_init();
     initRTC();
 		initPwm();
+		buzzerInit();
+		initBuzzerPWM(3000);
 	
     // Ask user for time at startup
 		int hh, mm, ss;
@@ -581,6 +584,8 @@ int main(void)
 								lcd_clear();
 								lcd_print("Incorrect card");
 								swipeCard = 0;
+								buzzerBeep(600, 150);
+								buzzerBeep(300, 180);
             }
             else
             {
@@ -619,6 +624,9 @@ int main(void)
 							
 								lcd_clear();
 								lcd_print("Welcome!");
+								buzzerBeep(1000, 80);
+								buzzerBeep(1400, 80);
+								buzzerBeep(1800, 100);
 								sweepServo();
             }
             else
@@ -634,6 +642,7 @@ int main(void)
 							
 								lcd_clear();
 								lcd_print("Incorrect passcode");
+								buzzerBeep(3000, 1000);
             }
         }
 
